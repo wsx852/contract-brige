@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+<meta charset="ISO-8859-1" />
+<link href="css/styles.css" rel="stylesheet" />
+<link href="favicon.ico" rel="shortcut icon">
+<!-- CSS only -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css">
+<title>Spring Boot Application</title>
+<style> 
+.congratulation {
+  border: 1px solid;
+  border-color: #dc3545;
+  animation-name: changebg;
+  animation-duration: 4s;
+  animation-iteration-count: infinite;
+}
+  
+ 
+ 
+ 
+
+@keyframes changebg {
+  0%   {border-color: #dc3545;}/*red*/
+  25%  {border-color: #ffc107;}/*yellow*/
+  50%  {border-color: #198754;}/*green*/
+  75%  {border-color: #0d6efd;}/*blue*/
+  100% {border-color: #dc3545;}/*red*/
+}
+
+.accordion-button:not(.collapsed) {
+    color: black;
+    background-color: white;}
+    
+    
+.row .position-absolute {
+    width: 6em;
+    height: 6em;
+	background-color: #6c757d66;
+    border-radius: .25rem;
+}
+
+.row .position-relative {
+	width: 25em;
+    height: 25em;
+    /*background-color: #f5f5f5;*/
+}
+.btn-outline-secondary {
+	background: whitesmoke;
+}
+</style>
+
+<!-- JavaScript Bundle with Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-U1DAWAznBHeqEIlVSCgzq+c9gqGAJn5c/t99JyeKa9xxaYpSvHU5awsuZVVFIhvj" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+	var bidbase = 1;
+	var seat = 0;
+	$().ready(function() {
+		console.log("ready!");
+		connect();
+		genBidBtn(bidbase);
+	});
+	var name = "";
+	function sent() {
+		alert(123);
+		var json = {
+			"message" : "Message123",
+			"time" : "time123",
+			"name" : "test123"
+		}
+		$.ajax({
+			type : "POST",
+			url : "/brige/json",
+			data : json,
+			success : function(response) {
+				// your success code
+			},
+			error : function(e) {
+				// your error code
+			}
+		});
+	}
+	var websocket;
+	var currentplayer;
+	var player;
+	var clean=false;
+	var cardCanPlayed=false;
+
+	function connect() {
+		websocket = new WebSocket("ws://localhost:8088/brige/socketserver");
+
+		websocket.onopen = function(e) {
+			console.log("[open] Connection established");
+
+		};
+		websocket.onmessage = function(event) {
+			console.log(`[message] Data received from server: ${event.data}`);
+			var obj = JSON.parse(event.data);
+			console.log(obj);
+			if (Array.isArray(obj)) {
+				dealCard(obj);
+			} else if (obj.status == "contract") {
+				showGoal(obj.trump, obj.oddTrick, obj.evenTrick);
+				changeArrow(obj.next);
+				$(".accordion-button").click();
+			} else if (obj.status == "signin") {
+				showName(obj.name, obj.seat);
+			} else if (obj.status == "bid") {
+				genBidBtn(obj.bidbase);
+				showMessage(obj.name, obj.bid);
+				changeArrow(obj.next);
+			} else if (obj.status == "ready") {
+				changeArrow("0");
+			} else if (obj.status == "trick") {
+				if (clean) {
+					cleanDesk();
+					clean = false;
+				}
+				showCard(obj.player, obj.card);
+				changeArrow(obj.next);
+				if (obj.evenTeam || obj.oddTeam) {
+					clean = true;
+					score(obj.evenTeam, obj.oddTeam);
+				}
+
+			}
+		};
+		websocket.onclose = function(event) {
+			if (event.wasClean) {
+				console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+			} else {
+				// 例如服务器进程被杀死或网络中断
+				// 在这种情况下，event.code 通常为 1006
+				alert('[close] Connection died');
+			}
+		};
+		websocket.onerror = function(error) {
+			alert(`[error] ${error.message}`);
+		};
+	}
+	function signin() {
+		name = $("#name").val();
+		var data = {};
+		data.status = "init";
+		data.name = name;
+		websocket.send(JSON.stringify(data));
+	}
+
+	function signout() {
+		websocket.close();
+	}
+	function deal() {
+
+		var data = {};
+		data.status = "deal";
+
+		websocket.send(JSON.stringify(data));
+
+	}
+
+	function dealCard(cards) {
+
+		cards
+				.forEach(function(card) {
+					$("#cards_in_hand")
+							.append(
+									`<button class="btn btn-outline-secondary" value=${card} onclick="play(this)">${tranCard(card)}</button> `);
+				});
+		$("#cards_in_hand .btn").attr('disabled', true);
+	}
+
+	function tranCard(card) {
+		var suit = card.slice(0, 1);
+		var num = card.slice(1);
+		switch (suit) {
+		case "1":
+			suit = " <i class=\"bi bi-suit-club-fill\"></i>";
+			break;
+		case "2":
+			suit = " <i class=\"bi bi-suit-diamond-fill\" style=\"color: red;\"></i>";
+			break;
+		case "3":
+			suit = " <i class=\"bi bi-suit-heart-fill\" style=\"color: red;\"></i>";
+			break;
+		case "4":
+			suit = " <i class=\"bi bi-suit-spade-fill\"></i>";
+			break;
+		default:
+
+		}
+
+		switch (num) {
+		case "01":
+			num = "<br/>A";
+			break;
+		case "11":
+			num = "<br/>J";
+			break;
+		case "12":
+			num = "<br/>Q";
+			break;
+		case "13":
+			num = "<br/>K";
+			break;
+		default:
+			num = "<br/>" + parseInt(num);
+
+		}
+		card = suit + num;
+		return card;
+	}
+
+	function play(obj) {
+		console.log(obj);
+		var data = {};
+		data.status = "play";
+		data.name = name;
+		data.card = obj.value;
+		websocket.send(JSON.stringify(data));
+		$(obj).remove();
+
+	}
+
+	function bid(obj) {
+		console.log(obj);
+		var data = {};
+		data.status = "bid";
+		data.name = name;
+		data.bid = obj;
+		websocket.send(JSON.stringify(data));
+
+	}
+
+	function genBidBtn(bidbase) {
+		$("#bidding_area").empty();
+		for (i = parseInt(bidbase); i < (parseInt(bidbase) + 5); i++) {
+			if (i > 35)
+				break;
+			//console.log(i);
+			var bidvalue = bidValue(i);
+			//console.log(bidvalue);
+
+			$("#bidding_area").append(
+					"<button class=\"btn btn-outline-secondary\" onclick=\"bid("
+							+ i + ")\">" + bidvalue + "</button> ");
+		}
+
+		$("#bidding_area").append("<button class=\"btn btn-outline-secondary\" onclick=\"bid('P')\">PASS</button>");
+	}
+
+	function bidValue(i) {
+		if (i == "P")
+			return "PASS"
+		else
+			return Math.ceil(i / 5) + " "+cardSuit(i % 5);
+	}
+
+	function cardSuit(suit){
+		suit = parseInt(suit);
+		switch (suit) {
+		case 1:
+			return "<i class=\"bi bi-suit-club-fill\"></i>";
+			break;
+		case 2:
+			return "<i class=\"bi bi-suit-diamond-fill\" style=\"color: red;\"></i> ";
+			break;
+		case 3:
+			return "<i class=\"bi bi-suit-heart-fill\" style=\"color: red;\"></i>";
+			break;
+		case 4:
+			return "<i class=\"bi bi-suit-spade-fill\"></i> ";
+			break;
+		case 0:
+			return "<i class=\"bi bi-x-square-fill\"></i>";
+			break;
+		default:
+
+		}
+	}
+	function showMessage(name, message) {
+
+		$("#message_area").append(
+				`<span>${name} says ${bidValue(message)}</span><br/>`);
+	}
+
+	function showGoal(trump, oddTrick, evenTrick) {
+		$("#trump").append(`${cardSuit(trump)}`);
+		$("#goal_trick_odd").text(`${oddTrick}`);
+		$("#goal_trick_even").text(`${evenTrick}`);
+		$("#bidding_area").empty();
+		cardCanPlayed = true;
+	}
+
+	function showName(name, seat) {
+		$("#player" + seat + "_name").text(`${name}`);
+		if (name == this.name)
+			player = seat;
+		console.log("I'm Player" + player);
+	}
+
+	function changeArrow(seat) {
+		if(seat.includes('Team')){
+			congratulation(seat);
+			$("#victory_"+seat).text(` 獲勝!! `);
+			seat = seat=="evenTeam"?"東西玩家":"南北玩家";
+			$("#message_area").append(`<span>${seat}獲勝!!</span><br/>`);
+			
+		}
+		var arrowIcon;
+		switch (seat) {
+		case "0":
+			arrowIcon = "<i class=\"bi bi-arrow-up-square-fill\" style=\"color: whitesmoke;\"></i>";
+			break;
+		case "1":
+			arrowIcon = "<i class=\"bi bi-arrow-right-square-fill\" style=\"color: whitesmoke;\"></i>";
+			break;
+		case "2":
+			arrowIcon = "<i class=\"bi bi-arrow-down-square-fill\" style=\"color: whitesmoke;\"></i>";
+			break;
+		case "3":
+			arrowIcon = "<i class=\"bi bi-arrow-left-square-fill\" style=\"color: whitesmoke;\"></i>";
+			break;
+		default:
+
+		}
+		$("#arrow").html(arrowIcon);
+		currentplayer = seat;
+		console.log("It's Player" + currentplayer + "'s turn...'");
+
+		if (player == currentplayer) {
+			$("#bidding_area .btn").attr('disabled', false);
+			if(cardCanPlayed)
+				$("#cards_in_hand .btn").attr('disabled', false);
+		} else {
+			$("#bidding_area .btn").attr('disabled', true);
+			if(cardCanPlayed)
+				$("#cards_in_hand .btn").attr('disabled', true);
+		}
+
+	}
+
+	function showCard(player, card) {
+		$("#player" + player + "_card")
+				.html(
+						`<button class="btn btn-outline-secondary">${tranCard(card)}</button> `);
+	}
+
+	function cleanDesk() {
+		for (var i = 0; i < 4; i++) {
+			$("#player" + i + "_card").html(``);
+		}
+	}
+	
+	function score(evenTeam, oddTeam){
+		$("#current_trick_even").text(evenTeam);
+		$("#current_trick_odd").text(oddTeam);
+	}
+	
+	function congratulation(team){
+		$("#"+team).removeClass("border");
+		$("#"+team).removeClass("border-dark ");
+		$("#"+team).addClass("congratulation");
+	}
+</script>
+</head>
+<body>
+<!-- 	<h1 th:text="${hello}"></h1> -->
+<!-- 	<h1 th:text="${data}"></h1> -->
+<!-- 	<h4>Welcome to Thymeleaf Spring Boot web application</h4> -->
+
+<!-- 	<div class="border border-dark"> -->
+		
+<!-- 		<input type="text" id="name" name="name" placeholder="name"> <br>  -->
+<!-- 		<input type="button" value="Sign In" onclick="signin()">  -->
+<!-- 		<input type="button" value="Sign Out" onclick="signout()">  -->
+<!-- 		<input type="button" value="Deal" onclick="deal()"> -->
+<!-- 	</div> -->
+	<br>
+<!-- 	<div id="group_area"> -->
+<!-- 		王牌：<span id="trump"></span><br> -->
+<!-- 		<div class="border border-dark"> -->
+<!-- 		南北玩家墩數(目前/合約)：<span id="current_trick_odd">0</span>/<span id="goal_trick_odd">0</span><br> -->
+<!-- 		</div> -->
+<!-- 		<div class="border border-dark"> -->
+<!-- 		東西玩家墩數(目前/合約)：<span id="current_trick_even">0</span>/<span id="goal_trick_even">0</span> -->
+<!-- 		</div> -->
+<!-- 	</div> -->
+	<br>
+	
+	<br>
+<!-- 	<div id="seats"></div> -->
+	<div class="container">
+		<div class="row fs-1 my-1">
+			<div class="col-6">
+				<input type="text" id="name" name="name" placeholder="name" style="width: 100%;"> 
+			</div>
+<!-- 			<div class="col-6 border border-dark"> -->
+			<div class="col-2 text-center">
+				<button class="btn btn-lg btn-outline-success" onclick="signin()"><i class="bi bi-box-arrow-in-right"></i></button>
+			</div>
+			<div class="col-2 text-center">
+				<button class="btn btn-lg btn-outline-success" onclick="signout()"><i class="bi bi-box-arrow-right"></i></button>
+			</div>
+			<div class="col-2 text-center">
+				<button class="btn btn-lg btn-outline-success" onclick="deal()"><i class="bi bi-files"></i></button>
+			</div>
+				
+				
+				
+<!-- 				<input type="button" value="Sign In" onclick="signin()">  -->
+<!-- 				<input type="button" value="Sign Out" onclick="signout()">  -->
+<!-- 				<input type="button" value="Deal" onclick="deal()"> -->
+				
+				
+<!-- 			</div> -->
+		</div>
+		<div class="row my-1">
+<div class="accordion accordion-flush" id="accordionExample">
+  <div class="accordion-item">
+    <div class="accordion-header" id="headingOne">
+      <button class="accordion-button fs-1 py-0 ps-0" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+        王牌：<span id="trump"></span>
+      </button>
+    </div>
+    <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+      <div class="accordion-body" id="message_area">
+        
+			
+			
+      </div>
+    </div>
+  </div>
+
+
+</div>
+			
+		</div>
+<!-- 		<div class="row fs-1 my-1"> -->
+<!-- 			<div class="col-12"> -->
+<!-- 				王牌：<span id="trump"></span> -->
+<!-- 				</div> -->
+<!-- 		</div> -->
+		<div class="row fs-1 my-1">
+			<div class="col-6">
+				<div class="border border-dark" id="oddTeam">
+				南北玩家<span id="victory_oddTeam"></span><br/>
+				墩數(目前/合約)：<span id="current_trick_odd">0</span>/<span id="goal_trick_odd">0</span>
+				</div>
+			
+			</div>
+			<div class="col-6">
+			<div class="border border-dark" id="evenTeam">
+				東西玩家<span id="victory_evenTeam"></span><br/>
+				墩數(目前/合約)：<span id="current_trick_even">0</span>/<span id="goal_trick_even">0</span></div>
+			</div>
+		</div>
+<!-- 		<div class="row"> -->
+<!-- 			<div class="col-4 bg-light p-3 border offset-4"></div> -->
+<!-- 		</div> -->
+<!-- 		<div class="row"> -->
+<!-- 			<div class="col-4 bg-light p-3 border"></div> -->
+<!-- 			<div class="col-4 bg-light p-3"></div> -->
+<!-- 			<div class="col-4 bg-light p-3 border"></div> -->
+<!-- 		</div> -->
+<!-- 		<div class="row"> -->
+<!-- 			<div class="col-4 bg-light p-3 border offset-4"></div> -->
+<!-- 		</div> -->
+		<div class="row justify-content-center">
+			<div class="position-relative">
+			  <div class="position-absolute text-center top-0 start-50 translate-middle-x"><span id="player0_name">Player 0</span><br/><span id="player0_card"></span></div>
+			  <div class="position-absolute text-center top-50 start-0 translate-middle-y"><span id="player3_name">Player 3</span><br/><span id="player3_card"></span></div>
+			  <div class="position-absolute top-50 start-50 translate-middle d-flex align-items-center justify-content-center"><span id="arrow" class="fs-1"></span></div>
+			  <div class="position-absolute text-center top-50 end-0 translate-middle-y"><span id="player1_name">Player 1</span><br/><span id="player1_card"></span></div>
+			  <div class="position-absolute text-center bottom-0 start-50 translate-middle-x"><span id="player2_name">Player 2</span><br/><span id="player2_card"></span></div>
+			</div>
+		</div>
+		<div class="row my-1">
+			<div id="cards_in_hand"></div>
+		</div>
+		<div class="row my-1">
+			<div id="bidding_area"></div>
+		</div>
+	</div>
+	
+	
+<!-- 	<div class="container"> -->
+<!-- 		<div class="row"> -->
+<!-- 			<div class="col">1 of 2</div> -->
+<!-- 			<div class="col">2 of 2</div> -->
+<!-- 		</div> -->
+<!-- 		<div class="row"> -->
+<!-- 			<div class="col">1 of 3</div> -->
+<!-- 			<div class="col">2 of 3</div> -->
+<!-- 			<div class="col">3 of 3</div> -->
+<!-- 		</div> -->
+<!-- 	</div> -->
+
+
+
+</body>
+</html>
