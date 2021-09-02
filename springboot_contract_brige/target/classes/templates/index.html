@@ -90,7 +90,7 @@
 	var cardCanPlayed=false;
 
 	function connect() {
-		websocket = new WebSocket("ws://localhost:8088/brige/socketserver");
+		websocket = new WebSocket("ws://localhost:8080/socketserver");
 
 		websocket.onopen = function(e) {
 			console.log("[open] Connection established");
