@@ -17,11 +17,13 @@ public class BrigeController {
 	@RequestMapping("/")
 	public ModelAndView index(Model model, HttpServletRequest request) {
 		System.out.println("PORT############" + request.getLocalPort());
+		System.out.println("LocalAddr############" + request.getLocalAddr());
+		System.out.println("LocalName############" + request.getLocalName());
 //		model.addAttribute("port", request.getLocalPort());
 //		model.addAttribute("hello", "Hello World!!!");
 		ModelAndView mav = new ModelAndView("index");
 	    mav.addObject("port", request.getLocalPort());
-	    
+	    mav.addObject("serverName", request.getLocalName());
 
 	    return mav;
 	}
