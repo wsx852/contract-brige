@@ -2,6 +2,8 @@ package idv.henry.web.controller;
 
 import java.util.HashMap;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,10 +15,15 @@ import org.springframework.web.servlet.ModelAndView;
 @Controller
 public class BrigeController {
 	@RequestMapping("/")
-	public String index(Model model) {
-		
-		model.addAttribute("hello", "Hello World!!!");
-		return "index";
+	public ModelAndView index(Model model, HttpServletRequest request) {
+		System.out.println("PORT############" + request.getLocalPort());
+//		model.addAttribute("port", request.getLocalPort());
+//		model.addAttribute("hello", "Hello World!!!");
+		ModelAndView mav = new ModelAndView("index");
+	    mav.addObject("port", request.getLocalPort());
+	    
+
+	    return mav;
 	}
 	
 	@RequestMapping("/hello")
