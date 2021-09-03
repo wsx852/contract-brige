@@ -57,7 +57,8 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script th:inline="javascript">
 	var port = ":"+[[${port}]]+"";
-	var serverName = ":"+[[${serverName}]]+"";
+	var serverName = [[${serverName}]]+"";
+	//alert(serverName+port);
 </script>
 
 <script>
@@ -98,7 +99,7 @@
 
 	function connect() {
 		
-		websocket = new WebSocket("ws://localhost"+port+"/socketserver");
+		websocket = new WebSocket("ws://"+serverName+port+"/socketserver");
 
 		websocket.onopen = function(e) {
 			console.log("[open] Connection established");
