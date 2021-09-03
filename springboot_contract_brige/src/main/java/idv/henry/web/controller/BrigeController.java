@@ -23,7 +23,7 @@ public class BrigeController {
 //		model.addAttribute("hello", "Hello World!!!");
 		ModelAndView mav = new ModelAndView("index");
 	    mav.addObject("port", request.getLocalPort());
-	    mav.addObject("serverName", request.getLocalName());
+	    mav.addObject("serverName", request.getLocalAddr());
 
 	    return mav;
 	}
