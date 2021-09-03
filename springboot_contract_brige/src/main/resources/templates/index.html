@@ -55,7 +55,13 @@
 <!-- JavaScript Bundle with Popper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-U1DAWAznBHeqEIlVSCgzq+c9gqGAJn5c/t99JyeKa9xxaYpSvHU5awsuZVVFIhvj" crossorigin="anonymous"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script th:inline="javascript">
+	var port = ":"+[[${port}]]+"";
+</script>
+
 <script>
+
+
 	var bidbase = 1;
 	var seat = 0;
 	$().ready(function() {
@@ -90,7 +96,8 @@
 	var cardCanPlayed=false;
 
 	function connect() {
-		websocket = new WebSocket("ws://localhost/socketserver");
+		
+		websocket = new WebSocket("ws://localhost"+port+"/socketserver");
 
 		websocket.onopen = function(e) {
 			console.log("[open] Connection established");
@@ -368,7 +375,7 @@
 </head>
 <body>
 <!-- 	<h1 th:text="${hello}"></h1> -->
-<!-- 	<h1 th:text="${data}"></h1> -->
+<!-- 	<h1 th:text="${port}"></h1> -->
 <!-- 	<h4>Welcome to Thymeleaf Spring Boot web application</h4> -->
 
 <!-- 	<div class="border border-dark"> -->
